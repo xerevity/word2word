@@ -42,8 +42,10 @@ def load_tokenizer(lang):
     return tokenizer
 
 
-def word_segment(sent, lang, tokenizer):
-    if lang == 'ko':
+def word_segment(sent, lang, tokenizer, split=False):
+    if split:
+        words = sent.split()
+    elif lang == 'ko':
         words = [word for word, _ in tokenizer.pos(sent)]
     elif lang == 'ja':
         words = [elem for elem in tokenizer.getWS(sent)]
@@ -66,28 +68,28 @@ def word_segment(sent, lang, tokenizer):
     return words
 
 
-def process_line(line, lang, tokenizer, cased):
+def process_line(line, lang, tokenizer, cased, split=False):
     """Strip, uncase (optionally), and tokenize line.
 
     multiprocessing helper for get_sents()."""
     line = line.strip() if cased else line.strip().lower()
-    return word_segment(line, lang, tokenizer)
+    return word_segment(line, lang, tokenizer, split)
 
 
-def get_sents(fin, lang, tokenizer, cased, n_lines, num_workers=8):
+def get_sents(fin, lang, tokenizer, cased, n_lines, num_workers=8, split=False):
     """Load parallel corpus and segment words using multiprocessing."""
 
     with open(fin, encoding='utf-8') as f:
         lines = islice(f, n_lines)
         if num_workers <= 1:
-            return [process_line(line, lang, tokenizer, cased)
+            return [process_line(line, lang, tokenizer, cased, split)
                     for line in lines]
         else:
             print(f"Entering multiprocessing with {num_workers} workers...")
             with Pool(num_workers) as p:
                 return p.starmap(
                     process_line,
-                    zip(lines, repeat(lang), repeat(tokenizer), repeat(cased))
+                    zip(lines, repeat(lang), repeat(tokenizer), repeat(cased), repeat(split))
                 )
 
 

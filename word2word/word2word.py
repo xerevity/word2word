@@ -14,7 +14,6 @@ from word2word.methods import (
     rerank, rerank_mp, get_trans_co, get_trans_pmi
 )
 
-
 class Word2word:
     """The word2word class.
 
@@ -99,6 +98,7 @@ class Word2word:
             save_pmi: bool = False,
             savedir: str = None,
             num_workers: int = 16,
+            split: bool = False
     ):
         """Build a bilingual lexicon using a parallel corpus."""
 
@@ -122,10 +122,10 @@ class Word2word:
         t0 = time()
         print("Step 2. Constructing sentences")
         sents1 = get_sents(
-            lang1_file, lang1, tokenizer1, cased, n_lines, num_workers
+            lang1_file, lang1, tokenizer1, cased, n_lines, num_workers, split
         )
         sents2 = get_sents(
-            lang2_file, lang2, tokenizer2, cased, n_lines, num_workers
+            lang2_file, lang2, tokenizer2, cased, n_lines, num_workers, split
         )
         print(f"Time taken for step 2: {time() - t0:.2f}s")
 
@@ -224,3 +224,4 @@ class Word2word:
             word2x, y2word, x2ys = pickle.load(f)
         print(f"Loaded word2word custom bilingual lexicon from {path}")
         return cls(lang1, lang2, word2x, y2word, x2ys)
+
