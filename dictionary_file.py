@@ -349,9 +349,10 @@ if __name__ == "__main__":
 
     w2w = Word2word.load(args.lang1, args.lang2, savedir=args.savedir)
 
-    f = open(os.path.join(args.savedir, f"{args.lang1}-{args.lang2}.dict.txt"), 'w')
+    f = open(args.datapref +  f".{args.lang1}-{args.lang2}.dict.txt", 'w')
     for w in w2w.word2x.keys():
         for y in w2w(w):
             f.write(f"{w} {y}\n")
 
-    print("Bilingual dictionary created at", os.path.join(args.savedir, f"{args.lang1}-{args.lang2}.dict.txt"))
+    print("Bilingual dictionary created at", args.datapref +  f".{args.lang1}-{args.lang2}.dict.txt")
+    
