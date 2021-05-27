@@ -5,6 +5,7 @@ import itertools as it
 import argparse
 import operator
 from tqdm import tqdm
+from word2word import Word2word
 
 from word2word.utils import (
     download_or_load, download_os2018, get_savedir
@@ -88,8 +89,12 @@ def rerank_mp(x2ys, x2cnt, x2xs, width, n_trans, num_workers, threshold):
     return x2ys_cpe
 
 
-class Word2word:
-    """The word2word class.
+class MyWord2word(Word2word):
+    """The word2word class modified.
+
+    Added --split option for fast tokenization of pre-processed corpora
+    Added --threshold option to only keep the word translations above a score
+    New method: write_dict()
 
     Usage:
         from word2word import Word2word
@@ -104,57 +109,8 @@ class Word2word:
         my_en2fr = Word2word.make("en", "fr", "my_corpus")
     """
 
-    def __init__(self, lang1, lang2,
-                 word2x=None, y2word=None, x2ys=None, custom_savedir=None):
-        self.lang1 = lang1
-        self.lang2 = lang2
-
-        if all(d is not None for d in [word2x, y2word, x2ys]):
-            # load a custom-built word2word bilingual lexicon
-            self.word2x, self.y2word, self.x2ys = word2x, y2word, x2ys
-        elif any(d is not None for d in [word2x, y2word, x2ys]):
-            raise ValueError(
-                f"custom bilingual lexicon is only partially provided. "
-                f"use Word2word.make() or Word2word.load() to "
-                f"properly build or load custom lexicons.")
-        else:
-            # default: download/load the word2word dataset
-            self.word2x, self.y2word, self.x2ys = download_or_load(
-                lang1, lang2, custom_savedir
-            )
-
-        # lazily keep summary statistics of the learned bilingual lexicon
-        self.summary = {}
-
-    def __call__(self, query, n_best=5):
-        """Retrieve top-k word translations for the query word."""
-        try:
-            x = self.word2x[query]
-            ys = self.x2ys[x]
-            words = [self.y2word[y] for y in ys]
-        except KeyError:
-            raise KeyError(
-                f"query word {query} not found in the bilingual lexicon."
-            )
-        return words[:n_best]
-
-    def __len__(self):
-        """Return the number of source words for which translation exists."""
-        return len(self.x2ys)
-
-    def compute_summary(self):
-        """Compute basic summaries for the bilingual lexicon."""
-        n_unique_ys = len(set([y for ys in self.x2ys.values() for y in ys]))
-        n_ys = [len(ys) for ys in self.x2ys.values()]
-        self.summary = {
-            "n_valid_words": len(self),
-            "n_valid_targets": n_unique_ys,
-            "n_total_words": len(self.word2x),
-            "n_total_targets": len(self.y2word),
-            "n_translations_per_word": sum(n_ys) / len(n_ys),
-            "n_sentences": None,  # original file required
-        }
-        return self.summary
+    def __init__(self, lang1, lang2, word2x=None, y2word=None, x2ys=None, custom_savedir=None):
+        super().__init__(lang1, lang2, word2x, y2word, x2ys, custom_savedir)
 
     @classmethod
     def make(
@@ -278,27 +234,22 @@ class Word2word:
         print("Done!")
         return cls(lang1, lang2, word2x, y2word, x2ys_cpe)
 
-    @staticmethod
-    def save(lang1, lang2, savedir, word2x, word2y, x2word, x2ys, y2word, y2xs):
-        with open(os.path.join(savedir, f"{lang1}-{lang2}.pkl"), "wb") as f:
-            pickle.dump((word2x, y2word, x2ys), f)
-        with open(os.path.join(savedir, f"{lang2}-{lang1}.pkl"), "wb") as f:
-            pickle.dump((word2y, x2word, y2xs), f)
+    def write_dict(self):
+        """Save a bilingual dictionary containing the translations in text format."""
 
-    @classmethod
-    def load(cls, lang1, lang2, savedir):
-        """Loads this object with a custom-built bilingual lexicon.
+        f = open(args.datapref + f".{args.lang1}-{args.lang2}.dict.txt", 'w')
+        g = open(args.datapref + f".{args.lang2}-{args.lang1}.dict.txt", 'w')
 
-        savedir is the directory containing {lang1}-{lang2}.pkl files
-        built from the make function.
-        """
-        path = os.path.join(savedir, f"{lang1}-{lang2}.pkl")
-        assert os.path.exists(path), \
-            f"processed lexicon file not found at {path}"
-        with open(path, "rb") as f:
-            word2x, y2word, x2ys = pickle.load(f)
-        print(f"Loaded word2word custom bilingual lexicon from {path}")
-        return cls(lang1, lang2, word2x, y2word, x2ys)
+        w12 = Word2word.load(self.lang1, self.lang2, savedir=args.savedir)
+        w21 = Word2word.load(self.lang2, self.lang1, savedir=args.savedir)
+
+        for w in w12.word2x.keys():
+            for y in w12(w):
+                f.write(f"{w} {y}\n")
+
+        for w in w21.word2x.keys():
+            for y in w21(w):
+                g.write(f"{w} {y}\n")
 
 
 if __name__ == "__main__":
@@ -345,14 +296,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    Word2word.make(**vars(args))
+    w2w = Word2word.make(**vars(args))
+    w2w.write_dict()
 
-    w2w = Word2word.load(args.lang1, args.lang2, savedir=args.savedir)
-
-    f = open(args.datapref +  f".{args.lang1}-{args.lang2}.dict.txt", 'w')
-    for w in w2w.word2x.keys():
-        for y in w2w(w):
-            f.write(f"{w} {y}\n")
-
-    print("Bilingual dictionary created at", args.datapref +  f".{args.lang1}-{args.lang2}.dict.txt")
-    
