@@ -289,8 +289,8 @@ if __name__ == "__main__":
                              "a custom-built lexicon.")
     parser.add_argument('--num_workers', default=16, type=int,
                         help="number of workers used for multiprocessing")
-    parser.add_argument('--threshold', type=float, default=1.0, 
-                        help="translations below this score will be ignored")
+    # parser.add_argument('--threshold', type=float, default=1.0,
+    #                    help="translations below this score will be ignored")
     parser.add_argument('--split', dest="split", action="store_true",
                         help="separate words by simple splitting (recommended if the corpus is pre-processed)")
 
