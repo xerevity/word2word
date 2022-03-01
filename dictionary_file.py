@@ -92,9 +92,9 @@ def rerank_mp(x2ys, x2cnt, x2xs, width, n_trans, num_workers, threshold):
 class MyWord2word(Word2word):
     """The word2word class modified.
 
-    Added --split option -> fast tokenization of pre-processed corpora
-    Added --threshold option -> only keep the word translations above a score
-    Saving translations to a text file
+    Added --split option for fast tokenization of pre-processed corpora
+    Added --threshold option to only keep the word translations above a score
+    New method: write_dict()
 
     Usage:
         from word2word import Word2word
@@ -231,12 +231,17 @@ class MyWord2word(Word2word):
             Word2word.save(lang1, lang2, subdir, word2x, word2y, x2word,
                            x2ys_pmi, y2word, y2xs_pmi)
 
-        # save a bilingual dictionary containing the translations in text format
+        print("Done!")
+        return cls(lang1, lang2, word2x, y2word, x2ys_cpe)
+
+    def write_dict(self):
+        """Save a bilingual dictionary containing the translations in text format."""
+
         f = open(args.datapref + f".{args.lang1}-{args.lang2}.dict.txt", 'w')
         g = open(args.datapref + f".{args.lang2}-{args.lang1}.dict.txt", 'w')
 
-        w12 = Word2word.load(lang1, lang2, savedir=savedir)
-        w21 = Word2word.load(lang2, lang1, savedir=savedir)
+        w12 = Word2word.load(self.lang1, self.lang2, savedir=args.savedir)
+        w21 = Word2word.load(self.lang2, self.lang1, savedir=args.savedir)
 
         for w in w12.word2x.keys():
             for y in w12(w):
@@ -245,9 +250,6 @@ class MyWord2word(Word2word):
         for w in w21.word2x.keys():
             for y in w21(w):
                 g.write(f"{w} {y}\n")
-
-        print("Done!")
-        return cls(lang1, lang2, word2x, y2word, x2ys_cpe)
 
 
 if __name__ == "__main__":
